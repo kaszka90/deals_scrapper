@@ -7,13 +7,11 @@ from bs4 import BeautifulSoup
 current_date = datetime.datetime.now().strftime("%d-%m-%Y")
 headers = {"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"}
 url = 'https://gg.deals/games/?primaryPlatform=7&sort=title&type=1&page='
-counter = 2537 # strona od której zaczynamy jako koncowka adresu url
+counter = 1  # strona od której zaczynamy jako koncowka adresu url
+csv_file_path = f'/Users/konrad/dane do projektu/bazar/deals_data_{current_date}.csv'
 
 def check_availability(html):
-    if not html.select('.page.next-page.disabled'):
-        return True
-    else:
-        return False
+    return not html.select('.page.next-page.disabled')
 
 def scrap_page(url, counter):
     url_checked = url + str(counter)
@@ -24,44 +22,46 @@ def scrap_page(url, counter):
     scraped_data = []
 
     for position in list_view:
-        title = position.select_one('.game-info-title') # tworzy element title na podstawie wybranej klasy
-        price_retail = position.select_one('.shop-price-retail > div > span')   
+        title = position.select_one('.game-info-title')
+        price_retail = position.select_one('.shop-price-retail > div > span')
         price_keyshops = position.select_one('.shop-price-keyshops > div > span')
         # genres = position.select_one('.ptsans.zero.trader.pc')
 
         if title and price_retail and price_keyshops:
-                title_text = title.get_text(strip=True) # torzy element zawirajacy tylko tekst title_text na podstawie tekstu znajdujęcego sie w elemecie title
-                price_retail_text = price_retail.get_text(strip=True)
-                # 
-                price_keyshops_text = price_keyshops.get_text(strip=True) #usuwam znaki ktore nie sa liczbami
-                # genres_text = genres.get_text(strip=True)
+            title_text = title.get_text(strip=True)
+            price_retail_text = price_retail.get_text(strip=True)
+            price_keyshops_text = price_keyshops.get_text(strip=True)
+            # genres_text = genres.get_text(strip=True)
 
-                scraped_data.append({
-                     'Tytuł': title_text,
-                     'Cena w oficjalnych sklepach': price_retail_text,
-                     'Cena w keyshopach': price_keyshops_text,
-                    #  'Gatunek': genres_text,
-                     'Data': current_date
-                })
+            scraped_data.append({
+                'Tytuł': title_text,
+                'Cena w oficjalnych sklepach': price_retail_text,
+                'Cena w keyshopach': price_keyshops_text,
+                # 'Gatunek': genres_text,
+                'Data': current_date
+            })
 
-                print(f"Tytuł: {title_text}, Cena w oficjalnych sklepach: {price_retail_text}, Cena w keyshopach: {price_keyshops_text}")
+            print(f"Tytuł: {title_text}, Cena w oficjalnych sklepach: {price_retail_text}, Cena w keyshopach: {price_keyshops_text}")
         else:
-                print(f"Nie udało się pobrać strony. Status kod: {title}")
-    
+            print(f"Nie udało się pobrać strony. Status kod: {title}")
+
     return scraped_data, check_availability(html)
 
-all_scraped_data = []
+def save_to_csv(data, file_path):
+    df = pd.DataFrame(data)
+    if counter == 1:
+        df.to_csv(file_path, index=False, mode='w', header=True)
+    else:
+        df.to_csv(file_path, index=False, mode='a', header=False)
 
 while True:
     print(f"Sprawdzam stronę: {counter}")
     scraped_data, has_next = scrap_page(url, counter)
-    all_scraped_data.extend(scraped_data)
+    save_to_csv(scraped_data, csv_file_path)
     
     if not has_next:
         print("Brak kolejnych stron.")
         break
     else:
         counter += 1  # zwiększenie zmiennej counter o 1 poza funkcją
-
-df = pd.DataFrame(all_scraped_data)
-df.to_csv(f'/Users/konrad/dane do projektu/bazar/deals_data_{current_date}.csv', index=False)
+        
